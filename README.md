@@ -7,6 +7,10 @@ This sample showcases best practices for AutoCAD plugin development, including p
 ## Demo
 
 
+https://github.com/user-attachments/assets/00dfe277-a9bf-44ed-a01a-155c763980aa
+
+
+
 
 ## Features
 
