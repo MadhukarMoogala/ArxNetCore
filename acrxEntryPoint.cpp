@@ -88,7 +88,6 @@ public:
     }
 
     // Generate a random color index
-
     static int getRandomColorIndex()
     {
         int colorArray[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
@@ -155,8 +154,6 @@ namespace UIForms {
             this->Controls->Add(radiusLabel);
             this->Controls->Add(radiusInput);
             this->Controls->Add(drawButton);
-            
-
         }
         // Helper method that performs the drawing operation on the main thread
         Task^ DrawCircleAsync(System::Object^ data)
@@ -168,8 +165,9 @@ namespace UIForms {
             {
                 double radius = Convert::ToDouble(radiusInput->Value);
                 int colorIndex = AcDbHelper::getRandomColorIndex();
-                if (AcDbHelper::createCircle(AcGePoint3d::kOrigin, radius,colorIndex))
+                if (AcDbHelper::createCircle(AcGePoint3d::kOrigin, radius, colorIndex))
                 {
+                    //Marks the task as successfully completed
                     tcs->SetResult();
                 }
                 else
@@ -179,11 +177,15 @@ namespace UIForms {
             }
             catch (System::Exception^ ex)
             {
+                // Marks the task as completed with an exception
                 tcs->SetException(ex);
             }
 
             return tcs->Task;
         }
+        /// <summary
+        /// Handles the "Draw Circle" button click, initiates the async drawing operation, and handles task completion or errors.
+        ///</summary>
         void DrawButton_Click(System::Object^ sender, System::EventArgs^ e)
         {
             // Disable the button to prevent multiple clicks
@@ -191,17 +193,15 @@ namespace UIForms {
 
             try
             {
-                // Get the DocumentManager
+                // Retrieve the DocumentManager to interact with AutoCAD's document system.
                 auto dm = Autodesk::AutoCAD::ApplicationServices::Core::Application::DocumentManager;
-
-                // Create the delegate with the correct syntax
+                // Create a delegate for the DrawCircleAsync method, which returns a Task.
                 auto callback = gcnew Func<Object^, Task^>(this, &MainForm::DrawCircleAsync);
-
-                // Execute the callback in the command context
+                //  Execute the delegate asynchronously within AutoCAD's command context.
+                //  This ensures that the drawing operation happens in the correct environment.
                 auto task = dm->ExecuteInCommandContextAsync(callback, nullptr);
+               //Attach a completion handler(OnCompleted) to the task to handle post - operation actions.
                 task->OnCompleted(gcnew Action(this, &MainForm::OnDrawCompleted));
-
-
             }
             catch (System::Exception^ ex)
             {
@@ -252,16 +252,18 @@ public:
     }
 
     static void MADGUIToolLaunch() {
+
+        UIForms::MainForm^ form = gcnew UIForms::MainForm();
         try
         {
-            auto form = gcnew UIForms::MainForm();
             Autodesk::AutoCAD::ApplicationServices::Application::ShowModelessDialog(form);
         }
         catch (System::Exception^ ex)
         {
             acutPrintf(L"\nException occurred: %s", ex->Message);
-        }
-    }
+        }       
+    }   
+   
 };
 
 IMPLEMENT_ARX_ENTRYPOINT(CArxNetCoreApp)
