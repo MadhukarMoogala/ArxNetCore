@@ -40,148 +40,150 @@ using namespace Autodesk::AutoCAD::Internal;
 class AcDbHelper
 {
 public:
-	// Smart pointer for AutoCAD database objects
-	template <class T> struct unique_db_ptr : public std::unique_ptr<T, void(*)(AcDbObject*)>
-	{
-		unique_db_ptr<T>(T* t) : std::unique_ptr<T, void(*)(AcDbObject*)>(t, closeOrDeleteDbObj) { }
+    // Smart pointer for AutoCAD database objects
+    template <class T> struct unique_db_ptr : public std::unique_ptr<T, void(*)(AcDbObject*)>
+    {
+        unique_db_ptr<T>(T* t) : std::unique_ptr<T, void(*)(AcDbObject*)>(t, closeOrDeleteDbObj) { }
 
-		static unique_db_ptr<T> create()
-		{
-			T* newObj = new T();
-			return unique_db_ptr<T>(newObj);
-		}
-	};
+        static unique_db_ptr<T> create()
+        {
+            T* newObj = new T();
+            return unique_db_ptr<T>(newObj);
+        }
+    };
 
-	// Add entity to model space
-	static bool addToDb(AcDbEntity* pEnt, AcDbDatabase* pDb = nullptr)
-	{
-		if (!pDb)
-			pDb = acdbHostApplicationServices()->workingDatabase();
+    // Add entity to model space
+    static bool addToDb(AcDbEntity* pEnt, AcDbDatabase* pDb = nullptr)
+    {
+        if (!pDb)
+            pDb = acdbHostApplicationServices()->workingDatabase();
 
-		unique_db_ptr<AcDbEntity> ent(pEnt);
-		AcDbBlockTable* pBt;
-		if (Acad::eOk != pDb->getBlockTable(pBt, AcDb::kForRead))
-			return false;
+        unique_db_ptr<AcDbEntity> ent(pEnt);
+        AcDbBlockTable* pBt;
+        if (Acad::eOk != pDb->getBlockTable(pBt, AcDb::kForRead))
+            return false;
 
-		unique_db_ptr<AcDbBlockTable> bt(pBt);
-		AcDbBlockTableRecord* pMs;
-		if (Acad::eOk != pBt->getAt(ACDB_MODEL_SPACE, pMs, AcDb::kForWrite))
-			return false;
+        unique_db_ptr<AcDbBlockTable> bt(pBt);
+        AcDbBlockTableRecord* pMs;
+        if (Acad::eOk != pBt->getAt(ACDB_MODEL_SPACE, pMs, AcDb::kForWrite))
+            return false;
 
-		return Acad::eOk == unique_db_ptr<AcDbBlockTableRecord>(pMs)->appendAcDbEntity(ent.get());
-	}
+        return Acad::eOk == unique_db_ptr<AcDbBlockTableRecord>(pMs)->appendAcDbEntity(ent.get());
+    }
 
-	// Create and add circle to database
-	static bool createCircle(const AcGePoint3d& center, double radius, int colorIndex = 1)
-	{
-		auto circlePtr = unique_db_ptr<AcDbCircle>::create();
-		if (!circlePtr)
-			return false;
+    // Create and add circle to database
+    static bool createCircle(const AcGePoint3d& center, double radius, int colorIndex = 1)
+    {
+        auto circlePtr = unique_db_ptr<AcDbCircle>::create();
+        if (!circlePtr)
+            return false;
 
-		AcDbCircle* circle = circlePtr.get();
-		circle->setDatabaseDefaults();
-		circle->setRadius(radius);
-		circle->setColorIndex(colorIndex);
-		circle->setCenter(center);
+        AcDbCircle* circle = circlePtr.get();
+        circle->setDatabaseDefaults();
+        circle->setRadius(radius);
+        circle->setColorIndex(colorIndex);
+        circle->setCenter(center);
 
-		return addToDb(circle);
-	}
+        return addToDb(circle);
+    }
 
     // Generate a random color index
 
     static int getRandomColorIndex()
     {
-        return (rand() % 256);
+        int colorArray[] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+        int index = rand() % 10;
+        return (colorArray[index]);
     }
 
 private:
-	// Helper function for smart pointer cleanup
-	static void closeOrDeleteDbObj(AcDbObject* pObj)
-	{
-		if (pObj->objectId().isNull())
-			delete pObj;
-		else
-			pObj->close();
-	}
+    // Helper function for smart pointer cleanup
+    static void closeOrDeleteDbObj(AcDbObject* pObj)
+    {
+        if (pObj->objectId().isNull())
+            delete pObj;
+        else
+            pObj->close();
+    }
 };
 
 // Part 2: UI Form Implementation with Clean Design
 //----------------------------------------
 
 namespace UIForms {
-	namespace AcadApp = Autodesk::AutoCAD::ApplicationServices::Core;
-	namespace AcadUtils = Autodesk::AutoCAD::Internal;
-	public ref class MainForm : public Form
-	{
-	private:
-		
-		// UI Controls
-		Button^ drawButton;
-		NumericUpDown^ radiusInput;
-		Label^ radiusLabel;
+    namespace AcadApp = Autodesk::AutoCAD::ApplicationServices::Core;
+    namespace AcadUtils = Autodesk::AutoCAD::Internal;
+    public ref class MainForm : public Form
+    {
+    private:
+        
+        // UI Controls
+        Button^ drawButton;
+        NumericUpDown^ radiusInput;
+        Label^ radiusLabel;
 
         // Initialize the form controls
-		void InitializeComponent()
-		{
-			this->Text = "Advanced AutoCAD Drawing Tool";
-			this->Width = 400;
-			this->Height = 200;
-			this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::FixedDialog;
-			this->StartPosition = FormStartPosition::CenterScreen;
+        void InitializeComponent()
+        {
+            this->Text = "Advanced AutoCAD Drawing Tool";
+            this->Width = 400;
+            this->Height = 200;
+            this->FormBorderStyle = System::Windows::Forms::FormBorderStyle::FixedDialog;
+            this->StartPosition = FormStartPosition::CenterScreen;
 
-			// Radius input setup
-			radiusLabel = gcnew Label();
-			radiusLabel->Text = "Circle Radius:";
-			radiusLabel->Location = Point(50, 40);
-			radiusLabel->AutoSize = true;
+            // Radius input setup
+            radiusLabel = gcnew Label();
+            radiusLabel->Text = "Circle Radius:";
+            radiusLabel->Location = Point(50, 40);
+            radiusLabel->AutoSize = true;
 
-			radiusInput = gcnew NumericUpDown();
-			radiusInput->Location = Point(150, 38);
-			radiusInput->Minimum = 1;
-			radiusInput->Maximum = 1000;
-			radiusInput->Value = 10;
-			radiusInput->DecimalPlaces = 2;
+            radiusInput = gcnew NumericUpDown();
+            radiusInput->Location = Point(150, 38);
+            radiusInput->Minimum = 1;
+            radiusInput->Maximum = 10000;
+            radiusInput->Value = 10;
+            radiusInput->DecimalPlaces = 2;
 
-			// Draw button setup
-			drawButton = gcnew Button();
-			drawButton->Text = "Draw Circle";
-			drawButton->Location = Point(150, 80);
-			drawButton->Width = 100;
-			drawButton->Click += gcnew EventHandler(this, &MainForm::DrawButton_Click);
+            // Draw button setup
+            drawButton = gcnew Button();
+            drawButton->Text = "Draw Circle";
+            drawButton->Location = Point(150, 80);
+            drawButton->Width = 100;
+            drawButton->Click += gcnew EventHandler(this, &MainForm::DrawButton_Click);
 
-			// Add controls to form
-			this->Controls->Add(radiusLabel);
-			this->Controls->Add(radiusInput);
-			this->Controls->Add(drawButton);
-			
+            // Add controls to form
+            this->Controls->Add(radiusLabel);
+            this->Controls->Add(radiusInput);
+            this->Controls->Add(drawButton);
+            
 
-		}
-		// Helper method that performs the drawing operation on the main thread
-		Task^ DrawCircleAsync(System::Object^ data)
-		{
-			// Create a TaskCompletionSource to manage the task lifecycle
-			auto tcs = gcnew TaskCompletionSource();
+        }
+        // Helper method that performs the drawing operation on the main thread
+        Task^ DrawCircleAsync(System::Object^ data)
+        {
+            // Create a TaskCompletionSource to manage the task lifecycle
+            auto tcs = gcnew TaskCompletionSource();
 
-			try
-			{
-				double radius = Convert::ToDouble(radiusInput->Value);
+            try
+            {
+                double radius = Convert::ToDouble(radiusInput->Value);
                 int colorIndex = AcDbHelper::getRandomColorIndex();
-				if (AcDbHelper::createCircle(AcGePoint3d::kOrigin, radius,colorIndex))
-				{
-					tcs->SetResult();
-				}
-				else
-				{
-					throw gcnew Exception("Failed to create circle");
-				}
-			}
-			catch (System::Exception^ ex)
-			{
-				tcs->SetException(ex);
-			}
+                if (AcDbHelper::createCircle(AcGePoint3d::kOrigin, radius,colorIndex))
+                {
+                    tcs->SetResult();
+                }
+                else
+                {
+                    throw gcnew Exception("Failed to create circle");
+                }
+            }
+            catch (System::Exception^ ex)
+            {
+                tcs->SetException(ex);
+            }
 
-			return tcs->Task;
-		}
+            return tcs->Task;
+        }
         void DrawButton_Click(System::Object^ sender, System::EventArgs^ e)
         {
             // Disable the button to prevent multiple clicks
@@ -197,24 +199,37 @@ namespace UIForms {
 
                 // Execute the callback in the command context
                 auto task = dm->ExecuteInCommandContextAsync(callback, nullptr);
-				task->GetResult();
-                // Enable the button
-				drawButton->Enabled = true;
-                // Set focus to the drawing area and zoom extents
-				AcadUtils::Utils::SetFocusToDwgView();
-				AcadUtils::Utils::CancelAndRunCmds("_.zoom\n_extents\n");
+                task->OnCompleted(gcnew Action(this, &MainForm::OnDrawCompleted));
+
+
             }
             catch (System::Exception^ ex)
             {
                 MessageBox::Show("Error: " + ex->Message, "Error",
-                    MessageBoxButtons::OK, MessageBoxIcon::Error);
+                MessageBoxButtons::OK, MessageBoxIcon::Error);
+            }
+        }
+        void OnDrawCompleted()
+        {
+            try
+            {	
+                // Enable the button
+                drawButton->Enabled = true;
+                // Set focus to the drawing area and zoom extents
+                AcadUtils::Utils::SetFocusToDwgView();
+                AcadUtils::Utils::CancelAndRunCmds("_.zoom\n_extents\n");
+            }
+            catch (System::Exception^ ex)
+            {
+                MessageBox::Show("Error: " + ex->Message, "Error",
+                MessageBoxButtons::OK, MessageBoxIcon::Error);
             }
         }		
-	public:
-		MainForm() {
-			InitializeComponent();
-		}
-	};
+    public:
+        MainForm() {
+            InitializeComponent();
+        }
+    };
 }
 
 
@@ -223,30 +238,30 @@ namespace UIForms {
 //----------------------------------------
 class CArxNetCoreApp : public AcRxArxApp {
 public:
-	CArxNetCoreApp() : AcRxArxApp() {}
+    CArxNetCoreApp() : AcRxArxApp() {}
 
-	virtual AcRx::AppRetCode On_kInitAppMsg(void* pkt) {
-		return AcRxArxApp::On_kInitAppMsg(pkt);
-	}
+    virtual AcRx::AppRetCode On_kInitAppMsg(void* pkt) {
+        return AcRxArxApp::On_kInitAppMsg(pkt);
+    }
 
-	virtual AcRx::AppRetCode On_kUnloadAppMsg(void* pkt) {
-		return AcRxArxApp::On_kUnloadAppMsg(pkt);
-	}
+    virtual AcRx::AppRetCode On_kUnloadAppMsg(void* pkt) {
+        return AcRxArxApp::On_kUnloadAppMsg(pkt);
+    }
 
-	virtual void RegisterServerComponents() {
-	}
+    virtual void RegisterServerComponents() {
+    }
 
-	static void MADGUIToolLaunch() {
-		try
-		{
-			auto form = gcnew UIForms::MainForm();
-			Autodesk::AutoCAD::ApplicationServices::Application::ShowModelessDialog(form);
-		}
-		catch (System::Exception^ ex)
-		{
-			acutPrintf(L"\nException occurred: %s", ex->Message);
-		}
-	}
+    static void MADGUIToolLaunch() {
+        try
+        {
+            auto form = gcnew UIForms::MainForm();
+            Autodesk::AutoCAD::ApplicationServices::Application::ShowModelessDialog(form);
+        }
+        catch (System::Exception^ ex)
+        {
+            acutPrintf(L"\nException occurred: %s", ex->Message);
+        }
+    }
 };
 
 IMPLEMENT_ARX_ENTRYPOINT(CArxNetCoreApp)
